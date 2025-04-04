@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAM2 Interactive Interface</title>
+    <title>Real-Time SAM2</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -57,17 +57,84 @@
             border-radius: 4px;
             font-size: 14px;
         }
+        .reset-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            background-color: #ff5555;
+            color: white;
+            margin-left: 20px;
+        }
+        .reset-btn:hover {
+            background-color: #ff3333;
+            transform: scale(1.05);
+        }
+        /* 클래스 컨트롤 그룹 스타일 */
+        .class-control {
+            display: flex;
+            align-items: center;
+            margin-right: 10px;
+        }
+        
+        /* 클래스별 초기화 버튼 스타일 */
+        .reset-class-btn {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 5px;
+            background-color: #ff9999;
+            color: black;
+        }
+        
+        .reset-class-btn:hover {
+            background-color: #ff7777;
+        }
+        
+        /* 전체 초기화 버튼 스타일 */
+        .reset-all-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            background-color: #ff5555;
+            color: white;
+            margin-left: 20px;
+        }
+        
+        .reset-all-btn:hover {
+            background-color: #ff3333;
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>SAM2 Interactive Interface</h1>
+        <h1>Intearactive SAM2 Segmentation</h1>
         
         <div class="controls">
-            <button id="class0" class="class-btn active">Class 0</button>
-            <button id="class1" class="class-btn">Class 1</button>
-            <button id="class2" class="class-btn">Class 2</button>
-            <button id="class3" class="class-btn">Class 3</button>
+            <div class="class-control">
+                <button id="class0" class="class-btn active">Class 0</button>
+                <button id="reset0" class="reset-class-btn">reset</button>
+            </div>
+            <div class="class-control">
+                <button id="class1" class="class-btn">Class 1</button>
+                <button id="reset1" class="reset-class-btn">reset</button>
+            </div>
+            <div class="class-control">
+                <button id="class2" class="class-btn">Class 2</button>
+                <button id="reset2" class="reset-class-btn">reset</button>
+            </div>
+            <div class="class-control">
+                <button id="class3" class="class-btn">Class 3</button>
+                <button id="reset3" class="reset-class-btn">reset</button>
+            </div>
         </div>
         
         <div class="video-container" id="videoContainer">
@@ -75,7 +142,7 @@
         </div>
         
         <div class="status" id="status">
-            Class 0 selected. Click an object to segment.
+            Wait for model initialization, click to segment
         </div>
     </div>
 
@@ -85,6 +152,7 @@
             const videoContainer = document.getElementById('videoContainer');
             const statusElement = document.getElementById('status');
             const classButtons = document.querySelectorAll('.class-btn');
+            const resetClassButtons = document.querySelectorAll('.reset-class-btn');
             let currentClass = 0;
 
             // 비디오 피드 클릭 이벤트 처리
@@ -109,7 +177,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        statusElement.textContent = `Class ${data.class} object at (${Math.round(videoX)}, ${Math.round(videoY)}) added`;
+                        statusElement.textContent = `Object of class ${data.class} at coordinate (${Math.round(videoX)}, ${Math.round(videoY)}) added`;
                     }
                 })
                 .catch(error => {
@@ -144,7 +212,34 @@
                             });
                             document.getElementById(`class${currentClass}`).classList.add('active');
                             
-                            statusElement.textContent = `Class ${currentClass} selected. Click an object to segment.`;
+                            statusElement.textContent = `Class ${currentClass} selected. Click to segment.`;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        statusElement.textContent = 'Error: ' + error.message;
+                    });
+                });
+            });
+
+            // 클래스별 초기화 버튼 이벤트 처리
+            resetClassButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // 버튼 ID에서 클래스 번호 추출 (reset0, reset1, ...)
+                    const classNum = parseInt(button.id.replace('reset', ''));
+                    
+                    // 서버에 특정 클래스 초기화 요청
+                    fetch('/reset_class', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ class: classNum })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            statusElement.textContent = `Class ${classNum} reset.`;
                         }
                     })
                     .catch(error => {

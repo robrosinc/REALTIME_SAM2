@@ -14,7 +14,8 @@ predictor = build_efficienttam_camera_predictor(model_cfg, tam_checkpoint)
 # Configuration
 classes = [0, 1, 2, 3]  # 4개의 클래스 유지
 click_points = {cls: [] for cls in classes}  # 각 클래스별 클릭 포인트 저장
-current_class = 0  # 현재 선택된 클래스
+current_class = 0
+current_frame = 0
 
 def generate_frames():
     cap = cv2.VideoCapture(0)
@@ -42,6 +43,8 @@ def generate_frames():
             )
 
     while True:
+        global current_frame
+        current_frame += 1
         ret, frame = cap.read()
         if not ret:
             break
@@ -54,45 +57,8 @@ def generate_frames():
         with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
             _, out_mask_logits = predictor.track(frame)
         
-        # 클릭 포인트가 있는지 확인하고 처리
         Gathered_matrix = {cls: {'points': [], 'labels': [], 'first_hit': []} for cls in classes}
 
-        # for cls in classes:
-        #     if click_points[cls]:
-        #         new_input = True
-        #         for point in click_points[cls]:
-        #             Gathered_matrix[cls]['points'].append(point)
-        #             Gathered_matrix[cls]['labels'].append(1)
-        #             Gathered_matrix[cls]['first_hit'].append(first_hit)
-        #             first_hit = False
-        #         click_points[cls] = []
-
-        # points = np.array([point], dtype=np.float32)
-        # labels = np.array([1], dtype=np.int32)
-
-
-
-        # with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-        #     predictor.add_new_points_during_track(cls, points, labels, first_hit=first_hit[0], frame=frame)
-
-        # with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-        #     _, _, out_mask_logits = predictor.finalize_new_input()
-        
-        # if new_input:
-        #     print("item detected")
-        #     for cls in classes:
-        #         if Gathered_matrix[cls]['points']:
-        #             points = np.array(Gathered_matrix[cls]['points'], dtype=np.float32)
-        #             labels = np.array(Gathered_matrix[cls]['labels'], dtype=np.int32)
-        #             first_hit = np.array(Gathered_matrix[cls]['first_hit'], dtype=np.bool_)
-
-        #             with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-        #                 predictor.add_new_points_during_track(cls, points, labels, first_hit=first_hit[0], frame=frame)
-            
-        #     with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-        #         _, _, out_mask_logits = predictor.finalize_new_input()
-
-        # '''#code reserved for yolo
         for cls in classes:
             if click_points[cls]:
                 new_input = True
@@ -116,7 +82,6 @@ def generate_frames():
             
             with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                 _, _, out_mask_logits = predictor.finalize_new_input()
-        # '''
 
         mask_logits = out_mask_logits.cpu().numpy()
 
@@ -133,7 +98,7 @@ def generate_frames():
             cv2.putText(frame_with_mask, f"Class {cls}", (10, 60 + i*30), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-        # 포인트 시각화
+        # Visualize prompts
         for cls in classes:
             if Gathered_matrix[cls]['points']:
                 for point in Gathered_matrix[cls]['points']:
@@ -167,9 +132,9 @@ def apply_mask_to_frame(frame, mask_logits, colors=None):
     if colors is None:
         colors = [
             (0, 255, 0),
-            (255, 0, 0),
             (0, 0, 255),
-            (255, 255, 0)
+            (255, 0, 0),
+            (0, 255, 255)
         ]
     
     mask_colored = np.zeros_like(frame, dtype=np.uint8)
@@ -205,6 +170,32 @@ def handle_click():
     click_points[current_class].append([x, y])
     print(f"Click at (x: {x}, y: {y}) for Class {current_class}")
     return jsonify({'status': 'success', 'class': current_class,'coordinates': {'x': x, 'y': y}})
+
+
+@app.route('/reset_class', methods=['POST'])
+def reset_class():
+    data = request.json
+    class_num = data['class']
+
+    if class_num not in classes:
+        return jsonify({'status': 'error', 'message': 'Invalid class'})
+    
+    # 해당 클래스만 초기화
+    points = np.array([[0,0]], dtype=np.float32)
+    labels = np.array([-1], dtype=np.int32)
+    
+    global current_frame, predictor
+    print("inside request", current_frame)
+    with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+        _, _, _ = predictor.add_new_points(
+            frame_idx=current_frame,
+            obj_id=class_num,
+            points=points,
+            labels=labels,
+            new_input=True
+        )
+    
+    return jsonify({'status': 'success', 'class': class_num})
 
 @app.route('/change_class', methods=['POST'])
 def change_class():
