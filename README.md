@@ -11,7 +11,7 @@ EfficientTAM checkpoints are available at the [Hugging Face Space](https://huggi
 
 ## Getting Started
 
-### Installation
+### 1. Installation
 
 ```bash
 git clone https://github.com/yformer/EfficientTAM.git
@@ -20,12 +20,13 @@ conda create -n efficient_track_anything python=3.12
 conda activate efficient_track_anything
 pip install -e .
 ```
-### Download Checkpoints
+### 2. Download Checkpoints
 
 ```bash
 cd checkpoints
 ./download_checkpoints.sh
 ```
+### 3. Run tam_app.py inside notebooks folder
 
 ## License
 Efficient track anything checkpoints and codebase are licensed under [Apache 2.0](./LICENSE).
