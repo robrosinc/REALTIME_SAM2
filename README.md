@@ -1,23 +1,33 @@
-# Efficient Track Anything
-[[`📕Project`](https://yformer.github.io/efficient-track-anything/)][[`🤗Gradio Demo`](https://10f00f01361a8328a4.gradio.live)][[`📕Paper`](https://arxiv.org/pdf/2411.18933)][[`🤗Checkpoints`]](https://huggingface.co/yunyangx/efficient-track-anything/tree/main)
-
+# Real Time Segment Anything 2
 Implementation of real-time EfficientTAM
+We have enabled real-time addition of objects to track during tracking. 
 
-The **Efficient Track Anything Model(EfficientTAM)** takes a vanilla lightweight ViT image encoder. An efficient memory cross-attention is proposed to further improve the efficiency. Our EfficientTAMs are trained on SA-1B (image) and SA-V (video) datasets. EfficientTAM achieves comparable performance with SAM 2 with improved efficiency. Our EfficientTAM can run **>10 frames per second** with reasonable video segmentation performance on **iPhone 15**. Try our demo with a family of EfficientTAMs at [[`🤗Gradio Demo`](https://10f00f01361a8328a4.gradio.live)].
+The **Efficient Track Anything Model(EfficientTAM)** takes a vanilla lightweight ViT image encoder. An efficient memory cross-attention is proposed to further improve the efficiency. EfficientTAMs are trained on SA-1B (image) and SA-V (video) datasets. EfficientTAM achieves comparable performance with SAM 2 with improved efficiency.[[`📕Project`](https://yformer.github.io/efficient-track-anything/)]
 
 
 ## Model
 EfficientTAM checkpoints are available at the [Hugging Face Space](https://huggingface.co/yunyangx/efficient-track-anything/tree/main).
 
-## Getting Started
+On a single 4070ti for inference,
 
+efficienttam_ti_512x512.pt takes 0.1 seconds for cond_frame / 0.08 seconds for non_cond_frame.
+
+sam2.1_hiera_tiny.pt takes 0.025 seconds for cond_frame / 0.02 seconds for non_cond_frame.
+
+While tam is faster, using sam outputs masks with better quality.
+
+
+## Getting Started with TAM
+python 3.10 and CUDA version 12.4 verified
+
+=======
 ### 1. Installation
 
 ```bash
-git clone https://github.com/yformer/EfficientTAM.git
-cd EfficientTAM
-conda create -n efficient_track_anything python=3.12
-conda activate efficient_track_anything
+git clone https://github.com/robrosinc/REALTIME_SAM2.git
+cd REALTIME_SAM2
+conda create -n tamapp python=3.10
+conda activate tamapp
 pip install -e .
 ```
 ### 2. Download Checkpoints
@@ -28,18 +38,19 @@ cd checkpoints
 ```
 ### 3. Run tam_app.py inside notebooks folder
 
+### 3. Run tam_app.py inside 'notebooks' folder
+
 ## License
 Efficient track anything checkpoints and codebase are licensed under [Apache 2.0](./LICENSE).
 
 ## Acknowledgement
+Thank you to all the developers at Meta and github for contributing such an exciting project to the open source community. 
 
 + [SAM2](https://github.com/facebookresearch/sam2)
-+ [SAM2-Video-Predictor](https://huggingface.co/spaces/fffiloni/SAM2-Video-Predictor)
-+ [florence-sam](https://huggingface.co/spaces/SkalskiP/florence-sam)
-+ [SAM](https://github.com/facebookresearch/segment-anything)
-+ [EfficientSAM](https://github.com/yformer/EfficientSAM)
++ [EfficientTAM](https://github.com/yformer/EfficientTAM)
++ [segment-anything-2-real-time](https://github.com/Gy920/segment-anything-2-real-time)
 
-If you're using Efficient Track Anything in your research or applications, please cite using this BibTeX:
+If you're using this repo in your research or applications, please cite EfficientTAM using this BibTeX:
 ```bibtex
 
 

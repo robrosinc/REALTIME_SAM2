@@ -524,7 +524,7 @@ class EfficientTAMBase(torch.nn.Module):
         num_obj_ptr_tokens = 0
         tpos_sign_mul = -1 if track_in_reverse else 1
         # Step 1: condition the visual features of the current frame on previous memories
-        if not is_init_cond_frame:
+        if not is_init_cond_frame and not new_input:
             # Retrieve the memories encoded with the maskmem backbone
             to_cat_memory, to_cat_memory_pos_embed = [], []
             # Add conditioning frames's output first (all cond frames have t_pos=0 for
