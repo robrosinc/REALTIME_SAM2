@@ -14,8 +14,8 @@ model_cfg = "../efficient_track_anything/configs/efficienttam/efficienttam_ti_51
 predictor = build_efficienttam_camera_predictor(model_cfg, tam_checkpoint)
 
 # YOLO model initialization
-yolo_model = YOLO("best_model.pt")  # Replace with the correct model file if needed
-classes = [0, 1, 2, 3]
+yolo_model = YOLO("block_sort_yolo.pt")
+classes = [0, 1, 2, 3] # blue block, orange block, yellow box, navy box in order
 
 def generate_frames():
     cap = cv2.VideoCapture(0)
