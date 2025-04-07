@@ -11,11 +11,14 @@ app = Flask(__name__)
 tam_checkpoint = "../checkpoints/efficienttam_ti_512x512.pt"
 model_cfg = "../efficient_track_anything/configs/efficienttam/efficienttam_ti_512x512.yaml"
 predictor = build_efficienttam_camera_predictor(model_cfg, tam_checkpoint)
-# Configuration
-classes = [0, 1, 2, 3]  # 4개의 클래스 유지
-click_points = {cls: [] for cls in classes}  # 각 클래스별 클릭 포인트 저장
+classes = [0, 1, 2, 3]  # Adjust number of classes
+
+# Initialize global variables !!Not best practice!!
+click_points = {cls: [] for cls in classes}  # Store clicked points for all classes
 current_class = 0
-current_frame = 0
+reset = False
+reset_class = 0
+current_frame_idx = 0
 
 def generate_frames():
     cap = cv2.VideoCapture(0)
@@ -29,31 +32,35 @@ def generate_frames():
 
     # Load the first frame into the predictor
     predictor.load_first_frame(frame, len(classes))
-    points = np.array([[0,0]], dtype=np.float32)
-    labels = np.array([-1], dtype=np.int32)
+    no_obj_points = np.array([[0,0]], dtype=np.float32)
+    no_obj_labels = np.array([-1], dtype=np.int32)
 
-    # 초기화: 각 클래스에 대해 빈 포인트 설정
+    # Give empty points before starting the camera, because if number of classes change during tracking,
+    # stack inside get_memory_cond_feat() will cause an error
     for cls in classes:
         with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
             _, _, out_mask_logits = predictor.add_new_points(
                 frame_idx=0,
                 obj_id=cls,
-                points=points,
-                labels=labels,
+                points=no_obj_points,
+                labels=no_obj_labels,
             )
 
     while True:
-        global current_frame
-        current_frame += 1
+        global current_frame_idx, reset
+        current_frame_idx += 1
         ret, frame = cap.read()
         if not ret:
             break
 
+        # Whether there is a prompt in this frame
         new_input = False
+
+        # Tells whether that class is the first prompt in this frame,
+        # This is leftover from the yolo example, where yolo prompts multiple classes in a single frame
         first_hit = True
-        # torch.cuda.synchronize()
-        # start_time = time.time()
         
+        # We perform track() regardless if a prompt exists or not. track() saves the results in output_dict['non_cond_frame'][current_frame_idx]
         with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
             _, out_mask_logits = predictor.track(frame)
         
@@ -69,8 +76,7 @@ def generate_frames():
                     first_hit = False
                 click_points[cls] = []
         
-        if new_input:
-            print("item detected")
+        if new_input or reset:
             for cls in classes:
                 if Gathered_matrix[cls]['points']:
                     points = np.array(Gathered_matrix[cls]['points'], dtype=np.float32)
@@ -80,12 +86,31 @@ def generate_frames():
                     with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                         predictor.add_new_points_during_track(cls, points, labels, first_hit=first_hit[0], frame=frame)
             
+            if reset:
+                with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                    predictor.add_new_points(
+                        frame_idx=current_frame_idx,
+                        obj_id=reset_class,
+                        points=no_obj_points,
+                        labels=no_obj_labels,
+                        new_input=True
+                    )
+                reset = False
+                # The resetting mechanism is same as new_input. We produce an empty mask for that object for the current frame,
+                # overwrite the object slice in the consolidated output, delete the memory up to this frame and start from this frame's output.
+                # Again the other objects are not affected as their output for this frame was created by track().
+
+
             with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                 _, _, out_mask_logits = predictor.finalize_new_input()
+            # When new_input is true, memory up to this frame is deleted at the end of consolidate_temp_output_across_obj() inside finalize_new_input()
+            # Because track() is called for every frame, the other objects' mask for the current frame stays, and the temp output for the prompted object becomes consolidated
+            # We sort of 'tricked' the model into viewing the result of the prompted frame as the starting memory
+
 
         mask_logits = out_mask_logits.cpu().numpy()
 
-        # 마스크 시각화
+        # Visualize masks
         frame_with_mask = apply_mask_to_frame(frame, mask_logits[0:4])
         
         # 클래스 정보 및 현재 선택된 클래스 표시
@@ -115,10 +140,6 @@ def generate_frames():
 
         _, buffer = cv2.imencode('.jpg', frame_with_mask)
         frame = buffer.tobytes()
-
-        # torch.cuda.synchronize()
-        # elapsed_time = time.time()-start_time
-        # print(elapsed_time)
 
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
@@ -165,7 +186,6 @@ def handle_click():
     x = data['x']
     y = data['y']
     
-    # 현재 선택된 클래스에 클릭 포인트 추가
     global current_class
     click_points[current_class].append([x, y])
     print(f"Click at (x: {x}, y: {y}) for Class {current_class}")
@@ -177,29 +197,17 @@ def reset_class():
     data = request.json
     class_num = data['class']
 
-    if class_num not in classes:
+    global reset, reset_class
+    if class_num in classes:
+        reset = True
+        reset_class = class_num
+    else:
         return jsonify({'status': 'error', 'message': 'Invalid class'})
-    
-    # 해당 클래스만 초기화
-    points = np.array([[0,0]], dtype=np.float32)
-    labels = np.array([-1], dtype=np.int32)
-    
-    global current_frame, predictor
-    print("inside request", current_frame)
-    with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-        _, _, _ = predictor.add_new_points(
-            frame_idx=current_frame,
-            obj_id=class_num,
-            points=points,
-            labels=labels,
-            new_input=True
-        )
-    
-    return jsonify({'status': 'success', 'class': class_num})
+
+    return jsonify({'status': 'success', 'reset': reset, 'reset_class': reset_class})
 
 @app.route('/change_class', methods=['POST'])
 def change_class():
-    """클래스 변경 처리"""
     data = request.json
     new_class = data['class']
     
