@@ -16,9 +16,11 @@ sam2.1_hiera_tiny.pt takes 0.025 seconds for cond_frame / 0.02 seconds for non_c
 
 While tam is faster, using sam outputs masks with better quality.
 
+
 ## Getting Started with TAM
 python 3.10 and CUDA version 12.4 verified
 
+=======
 ### 1. Installation
 
 ```bash
@@ -34,6 +36,7 @@ pip install -e .
 cd checkpoints
 ./download_checkpoints.sh
 ```
+### 3. Run tam_app.py inside notebooks folder
 
 ### 3. Run tam_app.py inside 'notebooks' folder
 
