@@ -1,22 +1,13 @@
 # Real Time Segment Anything 2
-Implementation of real-time EfficientTAM
+**Implementation of real-time EfficientTAM**
+
 We have enabled real-time addition of objects to track during tracking. 
 
-The **Efficient Track Anything Model(EfficientTAM)** takes a vanilla lightweight ViT image encoder. An efficient memory cross-attention is proposed to further improve the efficiency. EfficientTAMs are trained on SA-1B (image) and SA-V (video) datasets. EfficientTAM achieves comparable performance with SAM 2 with improved efficiency.[[`📕Project`](https://yformer.github.io/efficient-track-anything/)]
+The Efficient Track Anything Model(EfficientTAM) takes a vanilla lightweight ViT image encoder. An efficient memory cross-attention is proposed to further improve the efficiency. EfficientTAMs are trained on SA-1B (image) and SA-V (video) datasets. EfficientTAM achieves comparable performance with SAM 2 with improved efficiency.
 
+[[`📕Project`](https://yformer.github.io/efficient-track-anything/)]
 
-## Model
-EfficientTAM checkpoints are available at the [Hugging Face Space](https://huggingface.co/yunyangx/efficient-track-anything/tree/main).
-
-On a single 4070ti for inference,
-
-sam2.1_hiera_tiny.pt takes 0.1 seconds for prompted frames / 0.08 seconds for non prompted frames.
-
-efficienttam_ti_512x512.pt takes 0.025 seconds for prompted frames / 0.02 seconds for non prompted frames.
-
-While tam is faster, using sam outputs masks with better quality.
-
-## Getting Started
+## Usage
 python 3.10 & pytorch 2.6.0 & CUDA version 12.4 verified
 
 ### 1. Installation
@@ -35,7 +26,19 @@ cd checkpoints
 ./download_checkpoints.sh
 ```
 
+or EfficientTAM checkpoints are available at the [Hugging Face Space](https://huggingface.co/yunyangx/efficient-track-anything/tree/main).
+
 ### 3. Run tam_app.py inside 'notebooks' folder
+
+## Performance
+On a single 4070ti for inference,
+
+sam2.1_hiera_tiny.pt takes 0.1 seconds for prompted frames / 0.08 seconds for non prompted frames.
+
+efficienttam_ti_512x512.pt takes 0.025 seconds for prompted frames / 0.02 seconds for non prompted frames.
+
+While tam is faster, using sam outputs masks with better quality.
+
 
 ## License
 Efficient track anything checkpoints and codebase are licensed under [Apache 2.0](./LICENSE).
