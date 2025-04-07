@@ -86,19 +86,19 @@ def generate_frames():
                     with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                         predictor.add_new_points_during_track(cls, points, labels, first_hit=first_hit[0], frame=frame)
             
-                if reset:
-                    with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                        _, _, _ = predictor.add_new_points(
-                            frame_idx=current_frame_idx,
-                            obj_id=reset_class,
-                            points=no_obj_points,
-                            labels=no_obj_labels,
-                            new_input=True
-                        )
-                    reset = False
-                    # The resetting mechanism is same as new_input. We produce an empty mask for that object for the current frame,
-                    # overwrite the object slice in the consolidated output, delete the memory up to this frame and start from this frame's output.
-                    # Again the other objects are not affected as their output for this frame was created by track().
+            if reset:
+                with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                    predictor.add_new_points(
+                        frame_idx=current_frame_idx,
+                        obj_id=reset_class,
+                        points=no_obj_points,
+                        labels=no_obj_labels,
+                        new_input=True
+                    )
+                reset = False
+                # The resetting mechanism is same as new_input. We produce an empty mask for that object for the current frame,
+                # overwrite the object slice in the consolidated output, delete the memory up to this frame and start from this frame's output.
+                # Again the other objects are not affected as their output for this frame was created by track().
 
 
             with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
