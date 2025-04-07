@@ -44,6 +44,7 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         self.clear_non_cond_mem_for_multi_obj = clear_non_cond_mem_for_multi_obj
         self.condition_state = {}
         self.frame_idx = 0
+        self.object_of_interest = -1
 
     def prepare_data(
         self,
@@ -244,9 +245,11 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         labels,
         clear_old_points=True,
         normalize_coords=True,
-        new_input = False,
+        new_input = False, # clicks and reset will have new_input=True
     ):
-        """Add new points to a frame."""
+        """Add new points or reset"""
+        if new_input: # we use self.object_of_interest when clearing memory of that object in _consolidate_temp_output_across_obj()
+            self.object_of_interest = obj_id
         obj_idx = self._obj_id_to_idx(obj_id)
         point_inputs_per_frame = self.condition_state["point_inputs_per_obj"][obj_idx]
         mask_inputs_per_frame = self.condition_state["mask_inputs_per_obj"][obj_idx]
@@ -300,13 +303,10 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         # lookup temporary output dict first, which contains the most recent output
         # (if not found, then lookup conditioning and non-conditioning frame output)
         prev_out = obj_temp_output_dict[storage_key].get(frame_idx)
-        if prev_out is None:
-            prev_out = obj_output_dict["cond_frame_outputs"].get(frame_idx)
-            if prev_out is None:
-                print("this should")
-                prev_out = obj_output_dict["non_cond_frame_outputs"].get(frame_idx)
-                if prev_out is None:
-                    print("this should not print")
+        # if prev_out is None:
+        #     prev_out = obj_output_dict["cond_frame_outputs"].get(frame_idx)
+        #     if prev_out is None:
+        #         prev_out = obj_output_dict["non_cond_frame_outputs"].get(frame_idx)
 
         if prev_out is not None and prev_out["pred_masks"] is not None:
             prev_sam_mask_logits = prev_out["pred_masks"].cuda(non_blocking=True)
@@ -333,19 +333,17 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
 
         # Resize the output mask to the original video resolution
         obj_ids = self.condition_state["obj_ids"]
-        if(not new_input):
-            consolidated_out = self._consolidate_temp_output_across_obj(
-                frame_idx,
-                is_cond=is_cond,
-                run_mem_encoder=False,
-                consolidate_at_video_res=True,
-            )
-            _, video_res_masks = self._get_orig_video_res_output(
-                consolidated_out["pred_masks_video_res"]
-            )
-            return frame_idx, obj_ids, video_res_masks
-        else:
-            return
+        consolidated_out = self._consolidate_temp_output_across_obj(
+            frame_idx,
+            is_cond=is_cond,
+            run_mem_encoder=False,
+            consolidate_at_video_res=True,
+            new_input=True
+        )
+        _, video_res_masks = self._get_orig_video_res_output(
+            consolidated_out["pred_masks_video_res"]
+        )
+        return frame_idx, obj_ids, video_res_masks
 
     def _get_orig_video_res_output(self, any_res_masks):
         """
@@ -505,6 +503,10 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
                 "cond_frame_outputs": {},  # dict containing {frame_idx: <out>}
                 "non_cond_frame_outputs": {},  # dict containing {frame_idx: <out>}
             }
+            self.condition_state["output_dict_per_obj"][self.object_of_interest] = {
+                "cond_frame_outputs": {},  # dict containing {frame_idx: <out>}
+                "non_cond_frame_outputs": {},  # dict containing {frame_idx: <out>}
+            }
 
 
         return consolidated_out
@@ -631,9 +633,6 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
     ):
         if first_hit.any():
             self.condition_state["tracking_has_started"] = False
-            # self._consolidate_temp_output_across_obj(self.frame_idx, False, False)
-            # self.frame_idx +=1
-            # self.condition_state["num_frames"] += 1
             self.add_conditioning_frame(frame)
 
         print("Object ", obj_id, " Detected!")
@@ -646,12 +645,13 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
             normalize_coords=True,
             new_input=True
         )
+        #Because track is called for every frame, the other objects' mask for the current frame stays, and the temp output for the prompted object becomes consolidated
+        #When new_input is true, the memory up to this frame is deleted inside finalize_new_input's consolidate_temp_output_across_obj
 
     #However many prompts were made on that frame, save the results to condition_state
     @torch.inference_mode()
     def finalize_new_input(
         self,
-        new_input=True
     ):
         obj_ids = self.condition_state["obj_ids"]
 
@@ -660,7 +660,7 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
             is_cond=True,
             run_mem_encoder=True,
             consolidate_at_video_res=False,
-            new_input = new_input
+            new_input = True
         )
         
         self._add_output_per_object(self.frame_idx, consolidated_out, "cond_frame_outputs")
