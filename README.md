@@ -67,3 +67,4 @@ If you're using this repo in your research or applications, please cite Efficien
 We have enabled real-time addition of multiple objects.
 
 April 07 2025 / reset button has been added, code cleanup, comments translated
+April 17 2025 / preapring for modification (tracking with output_dict_per_obj to improve memory)
