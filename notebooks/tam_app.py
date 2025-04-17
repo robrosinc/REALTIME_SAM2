@@ -39,7 +39,7 @@ def generate_frames():
     # stack inside get_memory_cond_feat() will cause an error
     for cls in classes:
         with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-            _, _, out_mask_logits = predictor.add_new_points(
+            predictor.add_new_points(
                 frame_idx=0,
                 obj_id=cls,
                 points=no_obj_points,
