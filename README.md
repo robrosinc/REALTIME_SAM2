@@ -30,6 +30,8 @@ or EfficientTAM checkpoints are available at the [Hugging Face Space](https://hu
 
 ### 3. Run tam_app.py inside 'notebooks' folder
 
+⚠️ We recommend not using the reset button for now, instead try clicking on the object you want to change to multiple times.
+
 ## Performance
 On a single 4070ti for inference,
 
