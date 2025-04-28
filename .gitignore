@@ -3,3 +3,5 @@ frames_*
 __pycache__/
 checkpoints/*.pt
 efficient_track_anything/notebooks/refine_masks.py
+# PyCharm folder
+.idea/
