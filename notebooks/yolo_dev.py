@@ -11,7 +11,13 @@ app = Flask(__name__)
 # TAM Predictor initialization
 tam_checkpoint = "../checkpoints/efficienttam_ti_512x512.pt"
 model_cfg = "../efficient_track_anything/configs/efficienttam/efficienttam_ti_512x512.yaml"
-predictor = build_efficienttam_camera_predictor(model_cfg, tam_checkpoint)
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.mps.is_available():
+    device = torch.device("mps")
+else:
+    raise RuntimeError("No CUDA or MPS device found")
+predictor = build_efficienttam_camera_predictor(model_cfg, tam_checkpoint, device=device)
 
 # YOLO model initialization
 yolo_model = YOLO("block_sort_yolo.pt")
