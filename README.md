@@ -10,6 +10,8 @@ The Efficient Track Anything Model(EfficientTAM) takes a vanilla lightweight ViT
 ## Usage
 python 3.10 & pytorch 2.6.0 & CUDA version 12.4 verified
 
+For MPS see [issue #5](https://github.com/robrosinc/REALTIME_SAM2/issues/5) for details
+
 ### 1. Installation
 
 ```bash
@@ -71,3 +73,5 @@ We have enabled real-time addition of multiple objects.
 April 07 2025 / reset button has been added, code cleanup, comments translated
 
 April 17 2025 / preapring for modification (tracking with output_dict_per_obj to improve memory)
+
+April 29 2025 / MPS for MacOS added thanks to [@danydev](https://github.com/danydev)
