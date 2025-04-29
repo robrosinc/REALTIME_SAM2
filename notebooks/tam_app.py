@@ -17,9 +17,9 @@ elif torch.mps.is_available():
 else:
     raise RuntimeError("No CUDA or MPS device found")
 predictor = build_efficienttam_camera_predictor(model_cfg, tam_checkpoint, device=device)
-classes = [0, 1, 2, 3]  # Adjust number of classes
+classes = [0, 1, 2, 3]  # !!! If you adjust number of class, you have to add in more colors below !!!
 
-# Initialize global variables !!Not best practice!!
+# Initialize global variables (Not best practice)
 click_points = {cls: [] for cls in classes}  # Store clicked points for all classes
 current_class = 0
 reset = False
@@ -37,20 +37,11 @@ def generate_frames():
         raise RuntimeError("Error: Could not read the initial frame.")
 
     # Load the first frame into the predictor
-    predictor.load_first_frame(frame, len(classes))
+    with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+        first_mask = predictor.load_first_frame(frame, len(classes))
     no_obj_points = np.array([[0,0]], dtype=np.float32)
     no_obj_labels = np.array([-1], dtype=np.int32)
 
-    # Give empty points before starting the camera, because if number of classes change during tracking,
-    # stack inside get_memory_cond_feat() will cause an error
-    for cls in classes:
-        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-            predictor.add_new_points(
-                frame_idx=0,
-                obj_id=cls,
-                points=no_obj_points,
-                labels=no_obj_labels,
-            )
 
     while True:
         global current_frame_idx, reset
@@ -119,11 +110,10 @@ def generate_frames():
         # Visualize masks
         frame_with_mask = apply_mask_to_frame(frame, mask_logits[0:4])
         
-        # 클래스 정보 및 현재 선택된 클래스 표시
+        # Display selected class
         cv2.putText(frame_with_mask, f"Selected Class: {current_class}", (10, 30), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         
-        # 각 클래스 표시
         for i, cls in enumerate(classes):
             color = (0, 255, 0) if cls == current_class else (200, 200, 200)
             cv2.putText(frame_with_mask, f"Class {cls}", (10, 60 + i*30), 
@@ -134,7 +124,7 @@ def generate_frames():
             if Gathered_matrix[cls]['points']:
                 for point in Gathered_matrix[cls]['points']:
                     center_x, center_y = point
-                    # 클래스 색상 가져오기 (apply_mask_to_frame 함수의 colors와 일치)
+                    # get colors for each class (must match colors of apply_mask_to_frame)
                     colors = [(0, 255, 0), (255, 0, 0), (0, 0, 255), (255, 255, 0)]
                     color = colors[cls] if cls < len(colors) else (255, 255, 255)
                     

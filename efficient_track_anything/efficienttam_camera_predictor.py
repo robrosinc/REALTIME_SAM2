@@ -70,11 +70,9 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         img /= img_std
         return img, width, height
 
-
-
     @torch.inference_mode()
     def load_first_frame(self, img, num_classes=1):
-
+        print("frame 0")
         self.condition_state = self._init_state(
             offload_video_to_cpu=False, offload_state_to_cpu=False
         )
@@ -85,6 +83,16 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         self.condition_state["video_height"] = height
         self.condition_state["video_width"] = width
         self._get_image_feature(frame_idx=0, batch_size=1)
+        # Give empty points before starting the camera, because if number of classes change during tracking,
+        # stack inside get_memory_cond_feat() will cause an error
+        for cls in range(num_classes):
+            _, _, out_mask_logits = self.add_new_points(
+                    frame_idx=0,
+                    obj_id=cls,
+                    points=np.array([[0, 0]], dtype=np.float32),
+                    labels=np.array([-1], dtype=np.int32),
+                )
+        return out_mask_logits
 
     def add_conditioning_frame(self, img):
         img, width, height = self.prepare_data(img, image_size=self.image_size)
@@ -193,55 +201,6 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         """Get the total number of unique object ids received so far in this session."""
         return len(self.condition_state["obj_idx_to_id"])
 
-    '''
-    #Maybe giving negative points for all classes at the beginning degrades masks
-    @torch.inference_mode()
-    def set_num_class(
-        self,
-        num_class
-    ):
-        consolidated_H = consolidated_W = self.image_size // 4
-        empty_mask =  torch.full(
-            size=(num_class, 1, consolidated_H, consolidated_W),
-            fill_value=NO_OBJ_SCORE,
-            dtype=torch.float32,
-            device=self.condition_state["storage_device"],
-        )
-        empty_mask_ptr = torch.full(
-            size=(num_class, self.hidden_dim),
-            fill_value=NO_OBJ_SCORE,
-            dtype=torch.float32,
-            device=self.condition_state["device"],
-        ),
-        empty_score_logits = torch.full(
-            size=(num_class, 1),
-            fill_value=10.0,
-            dtype=torch.float32,
-            device=self.condition_state["device"],
-        )
-        for obj_id in range(num_class):
-            obj_idx = len(self.condition_state["obj_id_to_idx"])
-            self.condition_state["obj_id_to_idx"][obj_id] = obj_idx
-            self.condition_state["obj_idx_to_id"][obj_idx] = obj_id
-            self.condition_state["obj_ids"] = list(
-                self.condition_state["obj_id_to_idx"]
-            )
-            # set up input and output structures for this object
-            self.condition_state["point_inputs_per_obj"][obj_idx] = {}
-            self.condition_state["mask_inputs_per_obj"][obj_idx] = {}
-            self.condition_state["output_dict_per_obj"][obj_idx] = {
-                "cond_frame_outputs": {},  # dict containing {frame_idx: <out>}
-                "non_cond_frame_outputs": {},  # dict containing {frame_idx: <out>}
-            }
-            self.condition_state["temp_output_dict_per_obj"][obj_idx] = {
-                "cond_frame_outputs": {},  # dict containing {frame_idx: <out>}
-                "non_cond_frame_outputs": {},  # dict containing {frame_idx: <out>}
-            }
-            obj_state = self.condition_state["temp_output_dict_per_obj"][obj_id]["non_cond_frame_outputs"]
-            obj_state["obj_ptr"]=empty_mask_ptr
-            obj_state["pred_masks"]=empty_mask
-            obj_state["obj_score_logits"]=empty_score_logits'
-    '''
 
     @torch.inference_mode()
     def add_new_points(
