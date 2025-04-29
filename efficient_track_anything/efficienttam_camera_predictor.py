@@ -111,11 +111,18 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         self.condition_state["offload_state_to_cpu"] = offload_state_to_cpu
         # the original video height and width, used for resizing final output scores
 
-        self.condition_state["device"] = torch.device("cuda")
+        if torch.cuda.is_available():
+            self.condition_state["device"] = torch.device("cuda")
+        elif torch.mps.is_available():
+            self.condition_state["device"] = torch.device("mps")
+        else:
+            raise RuntimeError("No CUDA or MPS device found, you should enable offload_state_to_cpu")
+
         if offload_state_to_cpu:
             self.condition_state["storage_device"] = torch.device("cpu")
         else:
-            self.condition_state["storage_device"] = torch.device("cuda")
+            self.condition_state["storage_device"] = self.condition_state["device"]
+
         # inputs on each frame
         self.condition_state["point_inputs_per_obj"] = {}
         self.condition_state["mask_inputs_per_obj"] = {}
@@ -841,7 +848,7 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         if backbone_out is None:
             # Cache miss -- we will run inference on a single image
             image = (
-                self.condition_state["images"][-1].cuda().float().unsqueeze(0)
+                self.condition_state["images"][-1].to(self.condition_state["device"]).float().unsqueeze(0)
             )
             backbone_out = self.forward_image(image)
             # Cache the most recent frame's feature (for repeated interactions with
@@ -867,7 +874,7 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         return features
 
     def _get_feature(self, img, batch_size):
-        image = img.cuda().float().unsqueeze(0)
+        image = img.to(self.condition_state["device"]).float().unsqueeze(0)
         backbone_out = self.forward_image(image)
         self.condition_state["cached_features"] = {0: (image, backbone_out)}
         expanded_image = image.expand(batch_size, -1, -1, -1)

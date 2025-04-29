@@ -10,7 +10,13 @@ app = Flask(__name__)
 # SAM2 Predictor initialization
 sam2_checkpoint = "../checkpoints/sam2.1_hiera_tiny.pt"
 model_cfg = "../sam2/configs/sam2.1/sam2.1_hiera_t.yaml"
-predictor = build_sam2_camera_predictor(model_cfg, sam2_checkpoint)
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.mps.is_available():
+    device = torch.device("mps")
+else:
+    raise RuntimeError("No CUDA or MPS device found")
+predictor = build_sam2_camera_predictor(model_cfg, sam2_checkpoint, device=device)
 
 # Configuration
 classes = [0, 1, 2, 3]  # 4개의 클래스 유지
