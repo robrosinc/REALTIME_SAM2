@@ -27,7 +27,7 @@ reset_class = 0
 current_frame_idx = 0
 
 def generate_frames():
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(2)
     if not cap.isOpened():
         raise RuntimeError("Error: Cannot access the camera.")
 
