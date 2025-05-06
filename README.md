@@ -1,11 +1,13 @@
 # Real Time Segment Anything 2
-**Implementation of real-time EfficientTAM**
+**Implementation of real-time EfficientTAM**[[`📕Project`](https://yformer.github.io/efficient-track-anything/)]
+
+<p align="center">
+  <img src="media/video1.gif" width="50%" />
+  <img src="media/video2.gif" width="50%" />
+</p>
 
 We have enabled real-time addition of objects to track during tracking. 
 
-The Efficient Track Anything Model(EfficientTAM) takes a vanilla lightweight ViT image encoder. An efficient memory cross-attention is proposed to further improve the efficiency. EfficientTAMs are trained on SA-1B (image) and SA-V (video) datasets. EfficientTAM achieves comparable performance with SAM 2 with improved efficiency.
-
-[[`📕Project`](https://yformer.github.io/efficient-track-anything/)]
 
 ## Usage
 python 3.10 & pytorch 2.6.0 & CUDA version 12.4 verified
