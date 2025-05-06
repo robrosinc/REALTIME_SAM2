@@ -2,8 +2,8 @@
 **Implementation of real-time EfficientTAM**[[`📕Project`](https://yformer.github.io/efficient-track-anything/)]
 
 <p align="center">
-  <img src="media/video1.gif" width="50%" />
-  <img src="media/video2.gif" width="50%" />
+  <img src="media/video1.gif" width="75%" />
+  <img src="media/video2.gif" width="75%" />
 </p>
 
 We have enabled real-time addition of objects to track during tracking. 
