@@ -1,254 +1,308 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-Time SAM2</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            text-align: center;
-            background-color: #f0f0f0;
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
-        }
-        .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-        .video-container {
-            position: relative;
-            margin-bottom: 20px;
-            cursor: crosshair;
-        }
-        .controls {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .class-btn {
-            padding: 8px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-        .class-btn.active {
-            transform: scale(1.1);
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
-        }
-        #class0 { background-color: rgb(0, 255, 0); color: black; }
-        #class1 { background-color: rgb(255, 0, 0); color: white; }
-        #class2 { background-color: rgb(0, 0, 255); color: white; }
-        #class3 { background-color: rgb(255, 255, 0); color: black; }
-        .status {
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #e9e9e9;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .reset-btn {
-            padding: 8px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s;
-            background-color: #ff5555;
-            color: white;
-            margin-left: 20px;
-        }
-        .reset-btn:hover {
-            background-color: #ff3333;
-            transform: scale(1.05);
-        }
-        /* 클래스 컨트롤 그룹 스타일 */
-        .class-control {
-            display: flex;
-            align-items: center;
-            margin-right: 10px;
-        }
-        
-        /* 클래스별 초기화 버튼 스타일 */
-        .reset-class-btn {
-            padding: 4px 8px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            margin-left: 5px;
-            background-color: #ff9999;
-            color: black;
-        }
-        
-        .reset-class-btn:hover {
-            background-color: #ff7777;
-        }
-        
-        /* 전체 초기화 버튼 스타일 */
-        .reset-all-btn {
-            padding: 8px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s;
-            background-color: #ff5555;
-            color: white;
-            margin-left: 20px;
-        }
-        
-        .reset-all-btn:hover {
-            background-color: #ff3333;
-            transform: scale(1.05);
-        }
-    </style>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Interactive SAM2 Segmentation</title>
+  <style>
+    :root { --ui-bg:#f0f0f0; --ui-muted:#e9e9e9; }
+    * { box-sizing: border-box; }
+    body{font-family:Arial, sans-serif;margin:0;padding:20px;text-align:center;background-color:var(--ui-bg)}
+    h1{color:#333;margin-bottom:18px}
+    .container{display:flex;flex-direction:column;align-items:center;max-width:1000px;margin:0 auto}
+    .controls{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin:10px 0 12px}
+    .class-btn{padding:8px 15px;border:none;border-radius:4px;cursor:pointer;font-weight:bold;transition:all .2s}
+    .class-btn.active{transform:scale(1.06);box-shadow:0 0 10px rgba(0,0,0,.15)}
+    #class0{background-color:rgb(0,255,0);color:black}
+    #class1{background-color:rgb(255,0,0);color:white}
+    #class2{background-color:rgb(0,0,255);color:white}
+    #class3{background-color:rgb(255,255,0);color:black}
+    .reset-class-btn{padding:4px 8px;border:none;border-radius:4px;cursor:pointer;font-size:12px;background:#ff9d9d}
+    .reset-class-btn:hover{background:#ff7c7c}
+
+    .modebar{display:flex;align-items:center;gap:10px;margin:8px 0 14px}
+    .modebar label{font-weight:bold}
+    select,input[type="text"]{padding:8px;border-radius:4px;border:1px solid #aaa}
+    .promptbar{display:flex;gap:8px;align-items:center;justify-content:center;margin:10px 0;flex-wrap:wrap}
+    .promptbar input[type="text"]{min-width:320px}
+    .btn{padding:8px 14px;border:none;border-radius:4px;cursor:pointer;font-weight:600}
+    .btn-primary{background:#1f7aec;color:white}
+    .btn-primary:hover{filter:brightness(1.05)}
+    .status{margin-top:10px;padding:10px;background-color:var(--ui-muted);border-radius:4px;font-size:14px;min-height:24px}
+
+    /* Video area */
+    .video-wrap{
+        position: relative;
+        display: inline-block;
+        user-select: none;
+        width: 80vw; /* Sets the width to 80% of the viewport width */
+        height: 60vh; /* Sets the height to 60% of the viewport height */
+    }
+    #videoFeed{
+        width: 100%;
+        height: 100%;
+        /* Use 'contain' to ensure the full view is always visible */
+        object-fit: contain;
+        -webkit-user-drag:none; 
+        user-drag:none; 
+        user-select:none; 
+        pointer-events:none;
+    }
+
+    /* Interaction overlay canvas that captures ALL input */
+    #overlay{
+      position:absolute;left:0;top:0;width:100%;height:100%;
+      pointer-events:auto; user-select:none; touch-action:none; /* prevent scrolling/dragging */
+    }
+    /* Drag box outline (drawn on canvas; fallback CSS rect if needed) */
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Intearactive SAM2 Segmentation</h1>
-        
-        <div class="controls">
-            <div class="class-control">
-                <button id="class0" class="class-btn active">Class 0</button>
-                <button id="reset0" class="reset-class-btn">reset</button>
-            </div>
-            <div class="class-control">
-                <button id="class1" class="class-btn">Class 1</button>
-                <button id="reset1" class="reset-class-btn">reset</button>
-            </div>
-            <div class="class-control">
-                <button id="class2" class="class-btn">Class 2</button>
-                <button id="reset2" class="reset-class-btn">reset</button>
-            </div>
-            <div class="class-control">
-                <button id="class3" class="class-btn">Class 3</button>
-                <button id="reset3" class="reset-class-btn">reset</button>
-            </div>
-        </div>
-        
-        <div class="video-container" id="videoContainer">
-            <img src="/video_feed" alt="Video Feed" id="videoFeed">
-        </div>
-        
-        <div class="status" id="status">
-            Wait for model initialization, click to segment
-        </div>
-    </div>
+<div class="container">
+  <h1>Real-time Segmentation Interface</h1>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const videoFeed = document.getElementById('videoFeed');
-            const videoContainer = document.getElementById('videoContainer');
-            const statusElement = document.getElementById('status');
-            const classButtons = document.querySelectorAll('.class-btn');
-            const resetClassButtons = document.querySelectorAll('.reset-class-btn');
-            let currentClass = 0;
+  <div class="modebar">
+    <label for="modeSelect">Mode:</label>
+    <select id="modeSelect">
+      <option value="click">Click prompt</option>
+      <option value="text">Text prompt (sticky)</option>
+      <option value="dual">Dual (Text + Click)</option>
+      <option value="box">Bounding Box</option>
+    </select>
+  </div>
 
-            // 비디오 피드 클릭 이벤트 처리
-            videoContainer.addEventListener('click', (event) => {
-                // 클릭 좌표 계산
-                const rect = videoFeed.getBoundingClientRect();
-                const x = event.clientX - rect.left;
-                const y = event.clientY - rect.top;
-                
-                // 좌표를 실제 비디오 크기에 맞게 변환
-                const videoX = x * (videoFeed.naturalWidth / rect.width);
-                const videoY = y * (videoFeed.naturalHeight / rect.height);
-                
-                // 서버에 좌표 전송
-                fetch('/click', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ x: videoX, y: videoY })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        statusElement.textContent = `Object of class ${data.class} at coordinate (${Math.round(videoX)}, ${Math.round(videoY)}) added`;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    statusElement.textContent = 'Error: ' + error.message;
-                });
-            });
 
-            // 클래스 버튼 클릭 이벤트 처리
-            classButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    // 버튼 ID에서 클래스 번호 추출
-                    const classNum = parseInt(button.id.replace('class', ''));
-                    
-                    // 서버에 클래스 변경 요청
-                    fetch('/change_class', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ class: classNum })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            // 현재 클래스 업데이트
-                            currentClass = data.current_class;
-                            
-                            // 버튼 활성화 상태 업데이트
-                            classButtons.forEach(btn => {
-                                btn.classList.remove('active');
-                            });
-                            document.getElementById(`class${currentClass}`).classList.add('active');
-                            
-                            statusElement.textContent = `Class ${currentClass} selected. Click to segment.`;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        statusElement.textContent = 'Error: ' + error.message;
-                    });
-                });
-            });
+  <div class="controls">
+    <div><button id="class0" class="class-btn active">Class 0</button> <button id="reset0" class="reset-class-btn">reset</button></div>
+    <div><button id="class1" class="class-btn">Class 1</button>       <button id="reset1" class="reset-class-btn">reset</button></div>
+    <div><button id="class2" class="class-btn">Class 2</button>       <button id="reset2" class="reset-class-btn">reset</button></div>
+    <div><button id="class3" class="class-btn">Class 3</button>       <button id="reset3" class="reset-class-btn">reset</button></div>
+  </div>
 
-            // 클래스별 초기화 버튼 이벤트 처리
-            resetClassButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    // 버튼 ID에서 클래스 번호 추출 (reset0, reset1, ...)
-                    const classNum = parseInt(button.id.replace('reset', ''));
-                    
-                    // 서버에 특정 클래스 초기화 요청
-                    fetch('/reset_class', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ class: classNum })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            statusElement.textContent = `Class ${classNum} reset.`;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        statusElement.textContent = 'Error: ' + error.message;
-                    });
-                });
-            });
-        });
-    </script>
+  <div class="video-wrap" id="videoWrap">
+    <img id="videoFeed" draggable="false" alt="Video Feed" src="/video_feed"/>
+    <canvas id="overlay"></canvas>
+  </div>
+
+  <div class="promptbar" id="promptBar">
+    <input id="textPrompt" type="text" placeholder="Type prompt here…"/>
+    <button id="sendTextBtn" class="btn btn-primary">Prompt</button>
+    <span id="activeTextNote" style="font-size:12px;opacity:.8"></span>
+  </div>
+
+  <div class="status" id="status">Wait for model initialization</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const video = document.getElementById('videoFeed');
+  const wrap  = document.getElementById('videoWrap');
+  const canvas= document.getElementById('overlay');
+  const ctx   = canvas.getContext('2d');
+
+  const modeSelect  = document.getElementById('modeSelect');
+  const promptBar   = document.getElementById('promptBar');
+  const textInput   = document.getElementById('textPrompt');
+  const sendTextBtn = document.getElementById('sendTextBtn');
+  const activeTextNote = document.getElementById('activeTextNote');
+  const statusEl = document.getElementById('status');
+
+  const classButtons = document.querySelectorAll('.class-btn');
+  const resetButtons = document.querySelectorAll('.reset-class-btn');
+
+  let currentMode = 'click';
+  let currentClass = 0;
+  let activeStickyText = '';
+
+  // Bounding-box state
+  let isDragging = false;
+  let dragStart = null;
+  let suppressNextClick = false; // avoid click after drag
+
+  // Size overlay to match displayed <img>
+  function resizeCanvasToVideo(){
+    const r = video.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(r.width));
+    canvas.height= Math.max(1, Math.floor(r.height));
+  }
+  window.addEventListener('resize', resizeCanvasToVideo);
+  video.addEventListener('load', resizeCanvasToVideo);
+
+  // Init from server
+  fetch('/get_mode').then(r=>r.json()).then(d=>{
+    if (d.mode){ currentMode = d.mode; modeSelect.value=currentMode; }
+    if (typeof d.active_text==='string'){ activeStickyText = d.active_text; }
+    updatePromptBar();
+    updateActiveTextNote();
+    resizeCanvasToVideo();
+  }).catch(()=>{ resizeCanvasToVideo(); });
+
+  function updatePromptBar(){
+    promptBar.style.display = (currentMode==='click' || currentMode==='box') ? 'none' : 'flex';
+    wrap.style.cursor = (currentMode==='text') ? 'text' : 'crosshair';
+  }
+  function updateActiveTextNote(){
+    activeTextNote.textContent = activeStickyText ? `Sticky text: "${activeStickyText}"` : 'Sticky text is empty';
+  }
+
+  modeSelect.addEventListener('change', () => {
+    currentMode = modeSelect.value;
+    updatePromptBar();
+    fetch('/set_mode', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mode: currentMode})});
+  });
+
+  textInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter'){ e.preventDefault(); setSticky(); }
+  });
+  sendTextBtn.addEventListener('click', setSticky);
+
+  function setSticky(){
+    const text = textInput.value.trim();
+    if (!text){ statusEl.textContent='Please type a prompt first.'; return; }
+    fetch('/text_prompt', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text})})
+      .then(r=>r.json()).then(d=>{
+        if (d.status==='success'){
+          activeStickyText = d.active_text || text;
+          updateActiveTextNote();
+          statusEl.textContent = `Sticky text set: "${activeStickyText}"`;
+          textInput.value='';
+        } else {
+          statusEl.textContent = 'Error: ' + (d.message||'failed');
+        }
+      }).catch(err=> statusEl.textContent='Error: '+err.message);
+  }
+
+  // --- Coordinate helpers ---
+  function toDisplayXY(e){
+    const r = video.getBoundingClientRect();
+    const x = Math.max(0, Math.min(r.width,  e.clientX - r.left));
+    const y = Math.max(0, Math.min(r.height, e.clientY - r.top));
+    return {x,y, rect:r};
+  }
+  function toVideoXY(dispX, dispY, rect){
+    // map to natural resolution of the MJPEG frame
+    const sx = video.naturalWidth  / rect.width;
+    const sy = video.naturalHeight / rect.height;
+    return {vx: dispX * sx, vy: dispY * sy};
+  }
+
+  // --- Click (click & dual modes) captured on overlay canvas ---
+  canvas.addEventListener('click', (e) => {
+    if (suppressNextClick){ suppressNextClick=false; return; }
+    if (currentMode === 'box') return; // box handled by pointer events
+    const {x,y,rect} = toDisplayXY(e);
+    const {vx,vy} = toVideoXY(x,y,rect);
+    const maybeText = (currentMode === 'dual') ? (textInput.value.trim() || null) : null;
+
+    fetch('/click', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({x:vx, y:vy, text: maybeText})
+    })
+    .then(r=>r.json()).then(d=>{
+      if (d.status==='success'){
+        const coord = `(${Math.round(vx)}, ${Math.round(vy)})`;
+        if (d.applied_text){
+          statusEl.textContent = `Class ${d.class} @ ${coord}. Text applied for frame ${d.frame_idx}: "${d.applied_text}"`;
+          textInput.value=''; // do not clear sticky; only reset clears it
+        } else {
+          statusEl.textContent = `Object of class ${d.class} added @ ${coord}`;
+        }
+      } else statusEl.textContent = 'Error: ' + (d.message||'failed');
+    }).catch(err=> statusEl.textContent='Error: '+err.message);
+  });
+
+  // --- Bounding Box with Pointer Events (prevents native image drag/scroll) ---
+  canvas.addEventListener('pointerdown', (e) => {
+    if (currentMode !== 'box') return;
+    e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
+    isDragging = true;
+    const {x,y} = toDisplayXY(e);
+    dragStart = {x,y};
+    drawBox(x,y,x,y);
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!isDragging || currentMode !== 'box') return;
+    e.preventDefault();
+    const {x,y} = toDisplayXY(e);
+    drawBox(dragStart.x, dragStart.y, x, y);
+  });
+
+  function finishBox(e){
+    if (!isDragging) return;
+    e.preventDefault();
+    const {x,y,rect} = toDisplayXY(e);
+    isDragging = false;
+    clearCanvas();
+    const x1 = Math.min(dragStart.x, x), y1 = Math.min(dragStart.y, y);
+    const x2 = Math.max(dragStart.x, x), y2 = Math.max(dragStart.y, y);
+    const p1 = toVideoXY(x1,y1,rect), p2=toVideoXY(x2,y2,rect);
+
+    fetch('/box', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({x1:p1.vx, y1:p1.vy, x2:p2.vx, y2:p2.vy})
+    })
+    .then(r=>r.json()).then(d=>{
+      if (d.status==='success'){
+        statusEl.textContent = `Box sent for Class ${d.class} (frame ${d.frame_idx})`;
+      } else statusEl.textContent = 'Error: ' + (d.message||'failed');
+    }).catch(err=> statusEl.textContent='Error: '+err.message);
+
+    // Avoid the synthetic click that some UAs fire after a drag
+    suppressNextClick = true;
+    setTimeout(()=>{ suppressNextClick=false; }, 0);
+  }
+  canvas.addEventListener('pointerup',   finishBox);
+  canvas.addEventListener('pointercancel', finishBox);
+  canvas.addEventListener('pointerleave', (e)=>{ if(isDragging) finishBox(e); });
+
+  function clearCanvas(){ ctx.clearRect(0,0,canvas.width,canvas.height); }
+  function drawBox(x1,y1,x2,y2){
+    clearCanvas();
+    const x = Math.min(x1,x2), y = Math.min(y1,y2);
+    const w = Math.abs(x2-x1), h = Math.abs(y2-y1);
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6,6]);
+    ctx.strokeStyle = '#222';
+    ctx.strokeRect(x,y,w,h);
+    ctx.setLineDash([]);
+  }
+
+  // Class switching
+  classButtons.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const cls = parseInt(btn.id.replace('class',''));
+      fetch('/change_class',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({class:cls})})
+        .then(r=>r.json()).then(d=>{
+          if (d.status==='success'){
+            currentClass = d.current_class;
+            classButtons.forEach(b=>b.classList.remove('active'));
+            document.getElementById(`class${currentClass}`).classList.add('active');
+            statusEl.textContent = `Class ${currentClass} selected. ` +
+              (currentMode==='box'?'Drag to draw a box.':
+               currentMode==='text'?'Set sticky text and it will apply to next frames.':'Click to segment.');
+          } else statusEl.textContent='Error: '+(d.message||'failed');
+        }).catch(err=> statusEl.textContent='Error: '+err.message);
+    });
+  });
+
+  // Reset (also clears sticky text on backend)
+  resetButtons.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const cls = parseInt(btn.id.replace('reset',''));
+      fetch('/reset_class',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({class:cls})})
+        .then(r=>r.json()).then(d=>{
+          if (d.status==='success'){
+            activeStickyText = d.active_text || '';
+            updateActiveTextNote();
+            statusEl.textContent = `Class ${cls} reset (sticky text cleared).`;
+          } else statusEl.textContent='Error: '+(d.message||'failed');
+        }).catch(err=> statusEl.textContent='Error: '+err.message);
+    });
+  });
+});
+</script>
 </body>
 </html>
+

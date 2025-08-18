@@ -62,7 +62,7 @@ class EfficientTAMBase(torch.nn.Module):
         # The memory bank's temporal stride during evaluation (i.e. the `r` parameter in XMem and Cutie; XMem and Cutie use r=5).
         # For r>1, the (self.num_maskmem - 1) non-conditioning memory frames consist of
         # (self.num_maskmem - 2) nearest frames from every r-th frames, plus the last frame.
-        memory_temporal_stride_for_eval=1,
+        memory_temporal_stride_for_eval=5,
         # whether to apply non-overlapping constraints on the object masks in the memory encoder during evaluation (to avoid/alleviate superposing masks)
         non_overlap_masks_for_mem_enc=False,
         # whether to cross-attend to object pointers from other frames (based on SAM output tokens) in the encoder

@@ -86,6 +86,18 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         self.condition_state["video_width"] = width
         self._get_image_feature(frame_idx=0, batch_size=1)
 
+        # Crucial!! DO NOT DELETE THIS LINE!
+        # Give empty points before starting the camera, because if number of classes change during tracking,
+        # stack inside get_memory_cond_feat() will cause an error
+        for cls in range(num_classes):
+            _, _, out_mask_logits = self.add_new_prompts(
+                    frame_idx=0,
+                    obj_id=cls,
+                    points=np.array([[0, 0]], dtype=np.float32),
+                    labels=np.array([-1], dtype=np.int32),
+                )
+        return out_mask_logits
+
     def add_conditioning_frame(self, img):
         img, width, height = self.prepare_data(img, image_size=self.image_size)
         self.condition_state["images"] = [img]
@@ -155,7 +167,7 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
             return obj_idx
 
         # This is a new object id not sent to the server before. We only allow adding
-        # new objects *before* the tracking starts.
+        # new object classes (Default four) *before* the tracking starts.
         allow_new_object = not self.condition_state["tracking_has_started"]
         if allow_new_object:
             # get the next object slot
@@ -237,12 +249,13 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
     '''
 
     @torch.inference_mode()
-    def add_new_points(
+    def add_new_prompts(
         self,
         frame_idx,
         obj_id,
         points,
         labels,
+        boxes=None,
         clear_old_points=True,
         normalize_coords=True,
         new_input = False, # clicks and reset will have new_input=True
@@ -254,14 +267,32 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         point_inputs_per_frame = self.condition_state["point_inputs_per_obj"][obj_idx]
         mask_inputs_per_frame = self.condition_state["mask_inputs_per_obj"][obj_idx]
 
-        if not isinstance(points, torch.Tensor):
+        assert (
+            boxes is not None or points is not None
+        ), "Either boxes or points is required"
+
+        if points is None:
+            points = torch.zeros(0, 2, dtype=torch.float32)
+        elif not isinstance(points, torch.Tensor):
             points = torch.tensor(points, dtype=torch.float32)
-        if not isinstance(labels, torch.Tensor):
+        if labels is None:
+            labels = torch.zeros(0, dtype=torch.int32)
+        elif not isinstance(labels, torch.Tensor):
             labels = torch.tensor(labels, dtype=torch.int32)
         if points.dim() == 2:
             points = points.unsqueeze(0)  # add batch dimension
         if labels.dim() == 1:
             labels = labels.unsqueeze(0)  # add batch dimension
+        if boxes is not None:
+            if not isinstance(boxes, torch.Tensor):
+                boxes = torch.tensor(boxes, dtype=torch.float32, device=points.device)
+                box_coords = boxes.reshape(1, 2, 2)
+                box_labels = torch.tensor(
+                    [2, 3], dtype=torch.int32, device=labels.device
+                )
+                box_labels = box_labels.reshape(1, 2)
+                points = torch.cat([box_coords, points], dim=1)
+                labels = torch.cat([box_labels, labels], dim=1)
         if normalize_coords:
             video_H = self.condition_state["video_height"]
             video_W = self.condition_state["video_width"]
@@ -550,10 +581,9 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
 
     @torch.inference_mode()
     def propagate_in_video_preflight(self):
-        print("preflight called")
+        print("Preflight called. This message should only appear at frame 0 -> 1")
 
         """Prepare self.condition_state and consolidate temporary outputs before tracking."""
-        # Tracking has started and we don't allow adding new objects until session is reset.
         self.condition_state["tracking_has_started"] = True
         batch_size = self._get_obj_num()
 
@@ -570,7 +600,7 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
             storage_key = "cond_frame_outputs" if is_cond else "non_cond_frame_outputs"
             # Find all the frames that contain temporary outputs for any objects
             # (these should be the frames that have just received clicks for mask inputs
-            # via `add_new_points` or `add_new_mask`)
+            # via `add_new_prompts` or `add_new_mask`)
             temp_frame_inds = set()
             for obj_temp_output_dict in temp_output_dict_per_obj.values():
                 temp_frame_inds.update(obj_temp_output_dict[storage_key].keys())
@@ -623,11 +653,12 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         assert all_consolidated_frame_inds == input_frames_inds
 
     @torch.inference_mode()
-    def add_new_points_during_track(
+    def add_new_prompts_during_track(
         self, 
         obj_id, 
-        points, 
-        labels,
+        points = None, 
+        labels = None,
+        boxes = None,
         first_hit = False,
         frame = None
     ):
@@ -636,11 +667,12 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
             self.add_conditioning_frame(frame)
 
         print("Object ", obj_id, " Detected!")
-        self.add_new_points(
+        self.add_new_prompts(
             self.frame_idx,
             obj_id,
             points,
             labels,
+            boxes,
             clear_old_points=False,
             normalize_coords=True,
             new_input=True
@@ -691,7 +723,8 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         if len(cond_frame_outputs) > self.num_maskmem:
             for t in range(0, len(cond_frame_outputs) - self.num_maskmem):
                 # key, Value = non_cond_frame_outputs.popitem(last=False)
-                _ = cond_frame_outputs.pop(key_list[t], None)
+                popped = cond_frame_outputs.pop(key_list[t], None)
+                del popped
 
         output_dict_per_obj = self.condition_state["output_dict_per_obj"]
 
@@ -699,7 +732,10 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
             key_list = [key for key in output_dict_per_obj[obj]["cond_frame_outputs"]]
             if len(output_dict_per_obj[obj]["cond_frame_outputs"]) > self.num_maskmem:
                 for t in range(0, len(output_dict_per_obj[obj]["cond_frame_outputs"]) - self.num_maskmem):
-                    _ = output_dict_per_obj[obj]["cond_frame_outputs"].pop(key_list[t], None)
+                    popped = output_dict_per_obj[obj]["cond_frame_outputs"].pop(key_list[t], None)
+                    del popped
+        
+        torch.cuda.empty_cache()
 
 
     @torch.inference_mode()
@@ -726,6 +762,7 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
             current_vision_pos_embeds,
             feat_sizes,
         ) = self._get_feature(img, batch_size)
+        print("1", torch.cuda.memory_allocated() / 1024**2, "MB")
 
         current_out = self.track_step(
             frame_idx=self.frame_idx,
@@ -741,7 +778,7 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
             run_mem_encoder=True,
             prev_sam_mask_logits=None,
         )
-
+        print("2", torch.cuda.memory_allocated() / 1024**2, "MB")
         # optionally offload the output to CPU memory to save GPU space
         storage_device = self.condition_state["storage_device"]
         maskmem_features = current_out["maskmem_features"]
@@ -770,9 +807,12 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         }
         self._add_output_per_object(self.frame_idx, current_out, "non_cond_frame_outputs")
         output_dict["non_cond_frame_outputs"][self.frame_idx] = current_out
+        print("3", torch.cuda.memory_allocated() / 1024**2, "MB")
         self._manage_memory_obj(self.frame_idx, current_out)
 
         _, video_res_masks = self._get_orig_video_res_output(pred_masks_gpu)
+        print("4", torch.cuda.memory_allocated() / 1024**2, "MB")
+        torch.cuda.empty_cache()
         return obj_ids, video_res_masks
 
     def _manage_memory_obj(self, frame_idx, current_out):
@@ -785,7 +825,10 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
         if len(non_cond_frame_outputs) > self.num_maskmem:
             for t in range(0, len(non_cond_frame_outputs) - self.num_maskmem):
                 # key, Value = non_cond_frame_outputs.popitem(last=False)
-                _ = non_cond_frame_outputs.pop(key_list[t], None)
+                popped = non_cond_frame_outputs.pop(key_list[t], None)
+                del popped
+
+        torch.cuda.empty_cache()
 
         output_dict_per_obj = self.condition_state["output_dict_per_obj"]
 
@@ -793,7 +836,8 @@ class EfficientTAMCameraPredictor(EfficientTAMBase):
             key_list = [key for key in output_dict_per_obj[obj]["non_cond_frame_outputs"]]
             if len(output_dict_per_obj[obj]["non_cond_frame_outputs"]) > self.num_maskmem:
                 for t in range(0, len(output_dict_per_obj[obj]["non_cond_frame_outputs"]) - self.num_maskmem):
-                    _ = output_dict_per_obj[obj]["non_cond_frame_outputs"].pop(key_list[t], None)
+                    popped = output_dict_per_obj[obj]["non_cond_frame_outputs"].pop(key_list[t], None)
+                    del popped
 
     #Clear previous memory of this class (when choosing a new object to be this class)
     def _clear_obj_memory(self, frame_idx, obj_id):
