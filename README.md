@@ -1,12 +1,18 @@
 # Real Time Segment Anything 2
 **Implementation of real-time EfficientTAM**[[`📕Project`](https://yformer.github.io/efficient-track-anything/)]
 
-<p align="center">
-  <img src="media/video1.gif" width="75%" />
-  <img src="media/video2.gif" width="75%" />
-</p>
+<table>
+  <tr>
+    <td>
+      <img src="media/video1.gif" alt="Demo video 1" width="100%" />
+    </td>
+    <td>
+      <img src="media/video2.gif" alt="Demo video 2" width="100%" />
+    </td>
+  </tr>
+</table>
 
-We have enabled real-time addition of objects to track during tracking. 
+We have enabled real-time addition/deletion of objects during tracking. 
 
 
 ## Usage
@@ -75,5 +81,7 @@ We have enabled real-time addition of multiple objects.
 April 07 2025 / reset button has been added, code cleanup, comments translated
 
 April 17 2025 / preapring for modification (tracking with output_dict_per_obj to improve memory)
+
+August 18 2025 / bounding box input enabled, text input is under development
 
 April 29 2025 / MPS for MacOS added thanks to [@danydev](https://github.com/danydev)
