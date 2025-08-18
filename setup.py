@@ -43,6 +43,7 @@ REQUIRED_PACKAGES = [
     "opencv-python>=4.7.0",
     "moviepy==1.0.3",
     "supervision==0.25.0",
+    "Flask>=3.0.3",
 ]
 
 EXTRA_PACKAGES = {
@@ -53,7 +54,6 @@ EXTRA_PACKAGES = {
         "eva-decord>=0.6.1",
     ],
     "interactive-demo": [
-        "Flask>=3.0.3",
         "Flask-Cors>=5.0.0",
         "av>=13.0.0",
         "dataclasses-json>=0.6.7",
