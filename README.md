@@ -82,6 +82,6 @@ April 07 2025 / reset button has been added, code cleanup, comments translated
 
 April 17 2025 / preapring for modification (tracking with output_dict_per_obj to improve memory)
 
-August 18 2025 / bounding box input enabled, text input is under development
-
 April 29 2025 / MPS for MacOS added thanks to [@danydev](https://github.com/danydev)
+
+August 18 2025 / bounding box input enabled, text input is under development
