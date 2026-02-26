@@ -1,5 +1,7 @@
 # Real Time Segment Anything 2
-**Implementation of real-time EfficientTAM**[[`📕Project`](https://yformer.github.io/efficient-track-anything/)]
+
+This repository was initially forked from https://github.com/Gy920/segment-anything-2-real-time
+Building upon the original camera_predictor, we have implemented a temp_mem sliding window and enabled real-time deletion of object masks during tracking. 
 
 <table>
   <tr>
@@ -12,7 +14,6 @@
   </tr>
 </table>
 
-We have enabled real-time addition/deletion of objects during tracking. 
 
 
 ## Usage
@@ -40,7 +41,6 @@ or EfficientTAM checkpoints are available at the [Hugging Face Space](https://hu
 
 ### 3. Run tam_app.py inside 'notebooks' folder
 
-⚠️ We recommend not using the reset button for now, instead try clicking on the object you want to change to multiple times.
 
 ## Performance
 On a single 4070ti for inference,
