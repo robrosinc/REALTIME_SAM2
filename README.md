@@ -1,6 +1,6 @@
 # Real Time Segment Anything 2
 
-This repository was initially forked from https://github.com/Gy920/segment-anything-2-real-time
+This repository was initially forked from https://github.com/Gy920/segment-anything-2-real-time.
 Building upon the original camera_predictor, we have implemented a temp_mem sliding window and enabled real-time deletion of object masks during tracking. 
 
 <table>
